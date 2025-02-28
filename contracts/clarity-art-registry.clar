@@ -341,3 +341,58 @@
   )
 )
 
+
+;; Check if artwork dimensions are in range
+(define-public (validate-dimensions-range (artwork-id uint) (min-dims uint) (max-dims uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (and (>= (get dimensions artwork-record) min-dims) (<= (get dimensions artwork-record) max-dims)))
+  )
+)
+
+;; Validate dimensions input
+(define-public (validate-artwork-dimensions (dimensions uint))
+  (ok (and (> dimensions u0) (< dimensions u1000000000)))
+)
+
+;; ========================================================
+;; Ownership Verification Functions
+;; ========================================================
+;; Check if sender is artwork creator
+(define-public (verify-artwork-ownership (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (is-eq tx-sender (get artist artwork-record)))
+  )
+)
+
+;; Check if empty gallery
+(define-public (is-gallery-empty)
+  (ok (is-eq (var-get artwork-count) u0))
+)
+
+;; ========================================================
+;; Access Control Functions
+;; ========================================================
+;; Check if user has viewing permission
+(define-public (check-user-viewing-permission (artwork-id uint) (viewer principal))
+  (ok (is-some (map-get? permission-registry { artwork-id: artwork-id, viewer: viewer })))
+)
+
+;; Verify admin status
+(define-public (verify-admin-status)
+  (ok (is-eq tx-sender ADMIN))
+)
+
+;; ========================================================
+;; Validation Helper Functions
+;; ========================================================
+;; Check if name is empty
+(define-public (is-name-empty (name (string-ascii 64)))
+  (ok (is-eq (len name) u0))
+)
+
