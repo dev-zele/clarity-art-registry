@@ -272,4 +272,72 @@
 )
 
 
+;; Get full artwork details
+(define-public (get-full-artwork-details (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok artwork-record)
+  )
+)
+
+;; Get total artworks count
+(define-public (get-total-artworks)
+  (ok (var-get artwork-count))
+)
+
+;; Check if user has viewing permission
+(define-public (has-viewing-permission? (artwork-id uint) (viewer principal))
+  (let
+    (
+      (access-record (unwrap! (map-get? permission-registry { artwork-id: artwork-id, viewer: viewer }) ERROR-ACCESS-DENIED))
+    )
+    (ok (get can-view access-record))
+  )
+)
+
+;; ========================================================
+;; Artwork Modification Functions
+;; ========================================================
+;; Update artwork details
+(define-public (update-artwork (artwork-id uint) (new-name (string-ascii 64)) (new-dimensions uint) (new-notes (string-ascii 128)) (new-categories (list 10 (string-ascii 32))))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    ;; Validate inputs and permissions
+    (asserts! (artwork-registered? artwork-id) ERROR-ARTWORK-MISSING)
+    (asserts! (is-eq (get artist artwork-record) tx-sender) ERROR-PERMISSION-DENIED)
+    (asserts! (and (> (len new-name) u0) (< (len new-name) u65)) ERROR-INVALID-NAME)
+    (asserts! (and (> new-dimensions u0) (< new-dimensions u1000000000)) ERROR-INVALID-DIMENSIONS)
+    (asserts! (and (> (len new-notes) u0) (< (len new-notes) u129)) ERROR-INVALID-NAME)
+    (asserts! (are-categories-valid? new-categories) ERROR-INVALID-NAME)
+
+    ;; Update artwork details
+    (map-set artwork-registry
+      { artwork-id: artwork-id }
+      (merge artwork-record { 
+        name: new-name, 
+        dimensions: new-dimensions, 
+        notes: new-notes, 
+        categories: new-categories 
+      })
+    )
+    (ok true)
+  )
+)
+
+;; ========================================================
+;; Validator Functions
+;; ========================================================
+;; Check if user is artwork creator
+(define-public (is-user-creator (artwork-id uint) (user principal))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (is-eq (get artist artwork-record) user))
+  )
+)
 
