@@ -396,3 +396,53 @@
   (ok (is-eq (len name) u0))
 )
 
+
+;; Validate artwork ID
+(define-public (validate-artwork-id (artwork-id uint))
+  (ok (and (> artwork-id u0) (< artwork-id u1000000)))
+)
+
+;; Validate notes length
+(define-public (validate-notes-length (notes (string-ascii 128)))
+  (ok (and (> (len notes) u0) (<= (len notes) u128)))
+)
+
+;; Check if artwork has categories
+(define-public (has-categories (artwork-id uint))
+  (let 
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (> (len (get categories artwork-record)) u0))
+  )
+)
+
+;; Get total categories for artwork
+(define-public (count-categories (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (len (get categories artwork-record)))
+  )
+)
+
+;; ========================================================
+;; Deletion Functions
+;; ========================================================
+;; Remove artwork from registry
+(define-public (remove-artwork (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (asserts! (artwork-registered? artwork-id) ERROR-ARTWORK-MISSING)
+    (asserts! (is-eq (get artist artwork-record) tx-sender) ERROR-PERMISSION-DENIED)
+
+    ;; Delete artwork from registry
+    (map-delete artwork-registry { artwork-id: artwork-id })
+    (ok true)
+  )
+)
+
+
