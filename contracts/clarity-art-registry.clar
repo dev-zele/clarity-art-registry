@@ -160,3 +160,116 @@
     (ok (get notes artwork-record))
   )
 )
+
+
+;; Get artwork registration time
+(define-public (get-registration-time (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (get registration-block artwork-record))
+  )
+)
+
+;; Get artwork name
+(define-public (get-artwork-name (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (get name artwork-record))
+  )
+)
+
+;; Get artwork categories
+(define-public (get-artwork-categories (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (get categories artwork-record))
+  )
+)
+
+;; Get artwork artist
+(define-public (get-artwork-artist (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (get artist artwork-record))
+  )
+)
+
+;; ========================================================
+;; Artwork Validation Functions
+;; ========================================================
+;; Check if a user has viewing access
+(define-public (check-viewer-access (artwork-id uint) (viewer principal))
+  (let
+    (
+      (access-record (map-get? permission-registry { artwork-id: artwork-id, viewer: viewer }))
+    )
+    (ok (is-some access-record))
+  )
+)
+
+;; Check category count
+(define-public (get-category-count (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (len (get categories artwork-record)))
+  )
+)
+
+;; Validate artwork name length
+(define-public (validate-name (name (string-ascii 64)))
+  (ok (and (> (len name) u0) (<= (len name) u64)))
+)
+
+;; Validate if artwork exists
+(define-public (check-artwork-exists (artwork-id uint))
+  (let
+    (
+      (exists (artwork-registered? artwork-id))
+    )
+    (asserts! exists ERROR-ARTWORK-MISSING)
+    (ok exists)
+  )
+)
+
+;; ========================================================
+;; Artwork Management Functions
+;; ========================================================
+;; Transfer artwork ownership
+(define-public (transfer-artwork (artwork-id uint) (new-artist principal))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (asserts! (artwork-registered? artwork-id) ERROR-ARTWORK-MISSING)
+    (asserts! (is-eq (get artist artwork-record) tx-sender) ERROR-PERMISSION-DENIED)
+
+    ;; Update registry with new owner
+    (map-set artwork-registry
+      { artwork-id: artwork-id }
+      (merge artwork-record { artist: new-artist })
+    )
+    (ok true)
+  )
+)
+
+;; Remove viewer access
+(define-public (remove-viewer-access (artwork-id uint))
+  (begin
+    (asserts! (artwork-registered? artwork-id) ERROR-ARTWORK-MISSING)
+    (map-delete permission-registry { artwork-id: artwork-id, viewer: tx-sender })
+    (ok true)
+  )
+)
+
+
+
