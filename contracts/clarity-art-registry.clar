@@ -49,3 +49,114 @@
 (define-private (artwork-registered? (artwork-id uint))
   (is-some (map-get? artwork-registry { artwork-id: artwork-id }))
 )
+
+;; Validate user is the creator of an artwork
+(define-private (is-artwork-creator? (artwork-id uint) (artist principal))
+  (match (map-get? artwork-registry { artwork-id: artwork-id })
+    artwork-record (is-eq (get artist artwork-record) artist)
+    false
+  )
+)
+
+;; Get artwork dimensions
+(define-private (get-artwork-dimensions (artwork-id uint))
+  (default-to u0 
+    (get dimensions 
+      (map-get? artwork-registry { artwork-id: artwork-id })
+    )
+  )
+)
+
+;; Validate category format
+(define-private (is-category-valid? (category (string-ascii 32)))
+  (and 
+    (> (len category) u0)     ;; Category must have at least one character
+    (< (len category) u33)    ;; Category must be within size limits
+  )
+)
+
+;; Validate all categories in a list
+(define-private (are-categories-valid? (categories (list 10 (string-ascii 32))))
+  (and
+    (> (len categories) u0)                 ;; At least one category required
+    (<= (len categories) u10)               ;; Maximum 10 categories allowed
+    (is-eq (len (filter is-category-valid? categories)) (len categories))  ;; All categories must be valid
+  )
+)
+
+;; Text validation helper
+(define-private (validate-text-length (text (string-ascii 64)) (min-length uint) (max-length uint))
+  (and 
+    (>= (len text) min-length)
+    (<= (len text) max-length)
+  )
+)
+
+;; Dimension validation helper
+(define-private (are-dimensions-valid? (dimensions uint))
+  (and 
+    (> dimensions u0)          ;; Must be positive
+    (< dimensions u1000000000) ;; Must be below maximum threshold
+  )
+)
+
+;; Generate new artwork ID
+(define-private (generate-artwork-id)
+  (let ((current-id (var-get artwork-count)))
+    (var-set artwork-count (+ current-id u1))
+    (ok current-id) ;; Return pre-increment value
+  )
+)
+
+;; ========================================================
+;; Registry Management Functions
+;; ========================================================
+;; Create new artwork entry
+(define-public (register-artwork (name (string-ascii 64)) (dimensions uint) (notes (string-ascii 128)) (categories (list 10 (string-ascii 32))))
+  (let
+    (
+      (new-id (+ (var-get artwork-count) u1))
+    )
+    ;; Input validation
+    (asserts! (and (> (len name) u0) (< (len name) u65)) ERROR-INVALID-NAME)
+    (asserts! (and (> dimensions u0) (< dimensions u1000000000)) ERROR-INVALID-DIMENSIONS)
+    (asserts! (and (> (len notes) u0) (< (len notes) u129)) ERROR-INVALID-NAME)
+    (asserts! (are-categories-valid? categories) ERROR-INVALID-NAME)
+
+    ;; Create new artwork record
+    (map-insert artwork-registry
+      { artwork-id: new-id }
+      {
+        name: name,
+        artist: tx-sender,
+        dimensions: dimensions,
+        registration-block: block-height,
+        notes: notes,
+        categories: categories
+      }
+    )
+
+    ;; Set creator access permission
+    (map-insert permission-registry
+      { artwork-id: new-id, viewer: tx-sender }
+      { can-view: true }
+    )
+
+    ;; Update counter
+    (var-set artwork-count new-id)
+    (ok new-id)
+  )
+)
+
+;; ========================================================
+;; Artwork Information Retrieval
+;; ========================================================
+;; Get artwork notes
+(define-public (get-artwork-notes (artwork-id uint))
+  (let
+    (
+      (artwork-record (unwrap! (map-get? artwork-registry { artwork-id: artwork-id }) ERROR-ARTWORK-MISSING))
+    )
+    (ok (get notes artwork-record))
+  )
+)
